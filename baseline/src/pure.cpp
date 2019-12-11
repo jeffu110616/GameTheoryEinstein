@@ -24,7 +24,7 @@
 #include "einstein.hpp"
 
 const float UCB_C = sqrt(2);
-const int MAX_ITERATION = 5000; // 0: unlimited
+const int MAX_ITERATION = 10000; // 0: unlimited
 const float MAX_SECOND = 10.0;
 const int SIMULATION_BATCH = 10;
 

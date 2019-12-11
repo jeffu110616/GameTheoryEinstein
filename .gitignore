@@ -1,0 +1,9 @@
+.log*
+./game/game
+./baseline/random
+./baseline/greedy
+./baseline/conservative
+./baseline/pure
+./baseline/progressive
+
+

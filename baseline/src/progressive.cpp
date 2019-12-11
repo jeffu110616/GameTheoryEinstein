@@ -23,14 +23,16 @@
 
 #include "einstein.hpp"
 
+// Heuristic
+const int EARLY_GAME_STEPS_THRESHOLD = 10;
 // MCTS parameters
 const float UCB_C = sqrt(2);
-const int MAX_ITERATION = 50000; // 0: unlimited
+const int MAX_ITERATION = 10000; // 0: unlimited
 const float MAX_SECOND = 10.0;
-const int SIMULATION_BATCH = 50;
+const int SIMULATION_BATCH = 10;
 // PP parameters
 const int PP_MIN_SIM = 100;
-const float PP_NUM_SIGMA = 0.2;
+const float PP_NUM_SIGMA = 2;
 const float PP_SIGMA_EPSILON = 0.4;
 
 char start;
@@ -418,7 +420,17 @@ int main ()
 				// construct root node
 				NODE* root = new NODE;
 				root->construct(*b, NULL);
-				root->moveToExpand = root->board.move_list();
+				
+				if(b->history.size() < EARLY_GAME_STEPS_THRESHOLD){
+					auto ml = root->board.move_list();
+					for(int i=0; i<ml.size(); ++i){
+						if(root->board.yummy(ml[i]) != -1){
+							root->moveToExpand.push_back(ml[i]);
+						}
+					}
+				}else{
+					root->moveToExpand = root->board.move_list();
+				}
 
 				while(true){
 					// flog << "iter: " << iteration << std::endl;
