@@ -384,7 +384,7 @@ noexcept {
 			undo_move(); return ;
 		}
 		if ( !valid_move(num, dir) ) {
-			throw std::runtime_error("BOARD::do_move: game is over or the cube/direction is invalid" + num + dir);
+			throw std::runtime_error("BOARD::do_move: game is over or the cube/direction is invalid");
 		}
 		int ply = enum2int(color);
 		PII pos = find(color, num);
