@@ -201,6 +201,8 @@ struct _board {
 	bool _turn = 0; // R moves first
 	int turn_cnt = 1; // odd/even turn move odd/even pieces(start from odd)
 	int num_cubes[2] = {NUM_CUBE, NUM_CUBE}; // both start with num_cubes cubes
+	PII position[2][6]; // R/B, number
+	bool exist[2][6]; // servive numbers, for check the smallest tile
 
 	VMOVE history;
 
@@ -216,6 +218,8 @@ noexcept {
 			for ( int j=0; j<NUM_CUBE; ++j ) {
 				int x = init_cube_pos[i][j]/BOARD_SZ;
 				int y = init_cube_pos[i][j]%BOARD_SZ;
+				position[i][j] = std::make_pair(x, y);
+				exist[i][j] = true;
 				initial[init_cube_pos[i][j]] 
 				 = SQUARE(x, y, static_cast<Color>(i), init_cube[i][j]);
 				now[init_cube_pos[i][j]] 
@@ -231,6 +235,8 @@ noexcept {
 			for ( int j=0; j<NUM_CUBE; ++j ) {
 				int x = init_cube_pos[i][j]/BOARD_SZ;
 				int y = init_cube_pos[i][j]%BOARD_SZ;
+				position[enum2int(static_cast<Color>(i))][str[i][j]-'0'] = std::make_pair(x, y);
+				exist[enum2int(static_cast<Color>(i))][str[i][j]-'0'] = true;
 				initial[init_cube_pos[i][j]] 
 				 = SQUARE(x, y, static_cast<Color>(i), str[i][j]-'0');
 				now[init_cube_pos[i][j]] 
@@ -239,12 +245,27 @@ noexcept {
 		}
 
 	}
+	void printPos(){
+		for(int i=0; i<2; ++i){
+			flog << "player: " << i << ": ";
+			for(int j=0; j<6; ++j){
+				flog << "[" << position[i][j].first << ", " << position[i][j].second << "] ";
+			}
+			flog << std::endl;
+		}
+	}
 	// _board ( _board const& ) = delete;
 	_board ( _board const &b) {
 		seed = b.seed;
 		for ( int i=0; i<NUM_POSITION; ++i ) {
 			initial[i] = b.initial[i];
 			now[i] = b.now[i];
+		}
+		for(int i=0; i<NUM_PLAYER; ++i){
+			for(int j=0; j<NUM_CUBE; ++j){
+				position[i][j] = b.position[i][j];
+				exist[i][j] = b.exist[i][j];
+			}
 		}
 		_winner = b._winner;
 		_turn = b._turn;
@@ -261,6 +282,12 @@ noexcept {
 		for ( int i=0; i<NUM_POSITION; ++i ) {
 			initial[i] = b.initial[i];
 			now[i] = b.now[i];
+		}
+		for(int i=0; i<NUM_PLAYER; ++i){
+			for(int j=0; j<NUM_CUBE; ++j){
+				position[i][j] = b.position[i][j];
+				exist[i][j] = b.exist[i][j];
+			}
 		}
 		_winner = b._winner;
 		_turn = b._turn;
@@ -323,6 +350,26 @@ noexcept {
 			_winner = Color::NO_ONE;
 		}
 	}
+	void showIntent(PII &m)const noexcept{
+
+		flog << "Player " << this->turn() << " go [" << m.first << ", " << m.second << "]" << std::endl;
+		for(int i=0; i<6; ++i){
+			for(int j=0; j<6; ++j){
+				int idx = (i*6)+j;
+				if(!this->now[idx].c){
+					flog << "  ";
+				}else if(this->now[idx].c->c == Color::R){
+					char c = this->now[idx].c->num + 'A';
+					flog << c << ' ';
+				}else{
+					flog << this->now[idx].c->num << ' ';
+				}
+			}
+			flog << std::endl;
+		}
+
+		return;
+	}
 	PSS give_init_position () {
 		std::string res[2];
 		for ( int i=0; i<2; ++i ) {
@@ -360,7 +407,10 @@ noexcept {
 			}
 			#endif
 
-			PII pos = find(color, num);
+			// PII pos = find(color, num);
+			PII pos = position[ply][num];
+			// flog << "\tmove: " << pos.first << " " << pos.second << std::endl;
+
 			for ( int dir=0; dir<3; ++dir ) {
 				int xx = pos.first+dx[ply][dir];
 				int yy = pos.second+dy[ply][dir];
@@ -372,6 +422,9 @@ noexcept {
 		}
 		if ( res.empty() ) {
 			res.emplace_back(15, 15);
+		}
+		if (res.size() > 18){
+			flog << "\tMove List overloaded!!!!!, move in total: " << res.size() << std::endl;
 		}
 		return (res);
 	}
@@ -392,6 +445,17 @@ noexcept {
 
 		now[m.start_pos].c = now[m.end_pos].c;
 		now[m.end_pos].c = m.c;
+		int ply = enum2int(now[m.start_pos].c->c);
+		int start_x, start_y, end_x, end_y;
+		start_x = m.start_pos / 6;
+		start_y = m.start_pos % 6;
+		end_x = m.start_pos / 6;
+		end_y = m.start_pos % 6;
+
+		position[ply][now[m.start_pos].c->num] = std::make_pair(start_x, start_y);
+		if(now[m.end_pos].c){
+			position[enum2int(now[m.end_pos].c->c)][now[m.end_pos].c->num] = std::make_pair(end_x, end_y);
+		}
 		if ( m.eat_cube ) {
 			++num_cubes[enum2int(m.c->c)];
 		}
@@ -407,22 +471,29 @@ noexcept {
 		if ( num==16 and dir==16 ) { // undo move
 			undo_move(); return ;
 		}
-//		if ( !valid_move(num, dir) ) {
-//			throw std::runtime_error("BOARD::do_move: game is over or the cube/direction is invalid");
-//		}
+		if ( !valid_move(num, dir) ) {
+			flog << "invalid move: " << num << ", " << dir << std::endl;
+			throw std::runtime_error("BOARD::do_move: game is over or the cube/direction is invalid");
+		}
 		
-		// flog << "start moving..." << std::endl;
-
 		int ply = enum2int(color);
-		PII pos = find(color, num);
+		// flog << "start moving... palyer: " << ply << ", num: " << num << std::endl;
+		// PII pos = find(color, num);
+		PII pos = position[ply][num];
+		#ifdef GREEDY
+		pos = find(color, num);
+		#endif
 		int xx = pos.first+dx[ply][dir];
 		int yy = pos.second+dy[ply][dir];
+		// flog << "\tFrom [" << pos.first << ", " << pos.second << "] to [" << xx << ", " << yy << "]" << std::endl;
 		int now_pos = pos.first*BOARD_SZ+pos.second;
 		int nxt_pos = xx*BOARD_SZ+yy;
 // possible eat
 		if ( occupy(xx, yy) ) {
 			(now[nxt_pos].c->c == Color::R)?num_cubes[0]--:num_cubes[1]--;
 			//delete now[nxt_pos].c;
+			position[enum2int(now[nxt_pos].c->c)][now[nxt_pos].c->num] = std::make_pair(-100, -100);
+			exist[enum2int(now[nxt_pos].c->c)][now[nxt_pos].c->num] = false;
 			history.emplace_back(color, now_pos, nxt_pos, 1, now[nxt_pos].c);
 		}
 		else {
@@ -431,9 +502,120 @@ noexcept {
 // movement
 		now[nxt_pos].c = now[now_pos].c;
 		now[now_pos].c = nullptr;
+		position[ply][num] = std::make_pair(xx, yy);
 // update game state
 		update_game(state());
 		next_turn();
+	}
+	int getSmallestTile(int ply) const noexcept {
+		for(int i=0; i<6; ++i){
+			if(exist[ply][i]) return i;
+		}
+		flog << "Failed to get the smallest tile" << std::endl;
+		return 6;
+	}
+	int evalMove( PII &m ) const noexcept {
+		int const num = m.first;
+		int const dir = m.second;
+		if ( num == 15 or num == 16 ) {
+			return (0);
+		}
+		Color color = turn();
+		int ply = enum2int(color);
+		PII pos = position[ply][num];
+		int xx = pos.first+dx[ply][dir];
+		int yy = pos.second+dy[ply][dir];
+		int nxt_pos = xx*BOARD_SZ+yy;
+
+		// yummy
+		if ( occupy(xx, yy) ) {
+			if ( now[nxt_pos].c->c == color ) {
+				int smallestTileNum = getSmallestTile(ply);
+				if(ply == 1){
+					if( smallestTileNum > now[nxt_pos].c->num && ((xx == 0 || xx == 1) && (yy == 1 || yy == 0)) ){
+						// showIntent(m);
+						return(0);
+					}
+				}else{
+					if( smallestTileNum > now[nxt_pos].c->num && ((xx == 5 || xx == 4) && (yy == 4 || yy == 5)) ){
+						// showIntent(m);
+						return(0);
+					}
+				}
+				return (-1);
+			}else if( now[nxt_pos].c->num < num ){
+				return (2);
+			}else{
+				return(1);
+			}
+		} else {
+			if (((xx == 0 && yy == 0) || (xx == 5 && yy == 5)) && num != getSmallestTile(ply)){
+				return(-1);
+			}
+			return (0);
+			/*
+			int largeAllyCount = 0;
+			int smallAllyCount = 0;
+			int largeEnemyCount = 0;
+			int smallEnemyCount = 0;
+			int totalEnemy = 0;
+			int totalAlly = 0;
+			int oppoPly = (ply == 0)? 1 : 0;
+
+			// check enemy
+			for(int d=0; d<3; ++d){
+				int xxx = xx - dx[oppoPly][d];
+				int yyy = yy - dy[oppoPly][d];
+				if(xxx < 6 && xxx >=0 && yyy < 6 && yyy >=0){
+					int checkPos = xxx*BOARD_SZ + yyy;
+					CUBE *cube = now[checkPos].c;
+					if(cube && enum2int(cube->c) == oppoPly){
+						if(cube->num > num){
+							++largeEnemyCount;
+						}else{
+							++smallEnemyCount;
+						}
+					}
+				}
+			}
+			totalEnemy = largeEnemyCount + smallEnemyCount;
+			if(totalEnemy < 1) return(0);
+
+			// check ally
+			for(int d=0; d<3; ++d){
+				int xxx = xx - dx[ply][d];
+				int yyy = yy - dy[ply][d];
+				if(xxx < 6 && xxx >=0 && yyy < 6 && yyy >=0){
+					int checkPos = xxx*BOARD_SZ + yyy;
+					CUBE *cube = now[checkPos].c;
+					if(cube && enum2int(cube->c) == ply){
+						if(cube->num > num){
+							++largeAllyCount;
+						}else{
+							++smallAllyCount;
+						}
+					}
+				}
+			}
+			totalAlly = largeAllyCount + smallAllyCount;
+
+			if(largeEnemyCount > 0){ // stupid move
+				return(-2);
+			}else{ // small Enemy > 0
+				if(totalAlly == 1){ // only self
+					return(-3);
+				}else if(totalAlly > totalEnemy){
+					return(2);
+				}else if(totalAlly < totalEnemy){
+					return(-4);
+				}else{
+					return(-5);
+				}
+			}
+			*/
+		}
+
+		return(0);
 	}
 	int yummy ( int const &num, int const &dir ) const noexcept {
 // return if this move eats a piece
@@ -443,7 +625,8 @@ noexcept {
 		}
 		Color color = turn();
 		int ply = enum2int(color);
-		PII pos = find(color, num);
+		// PII pos = find(color, num);
+		PII pos = position[ply][num];
 		int xx = pos.first+dx[ply][dir];
 		int yy = pos.second+dy[ply][dir];
 		int nxt_pos = xx*BOARD_SZ+yy;

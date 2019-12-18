@@ -127,16 +127,20 @@ int main ()
 		for ( myturn=(start=='f'); b->winner()==Color::OTHER; flip_bit(myturn) ) {
 			if ( myturn ) {
 #ifdef GREEDY
-				flog << "origin\n";
-				flog << *(b);
+				// flog << "origin\n";
+				// flog << *(b);
 				auto ml = b->move_list();
 				PII m;
 				double val = -10000;
+				// flog << "ml size: " << ml.size() << std::endl;
+				if(ml.size() <= 1){
+					flog << "only one move: " << ml[0].first << " " << ml[0].second << std::endl;
+				}
 				for ( auto &move: ml ) {
 					b->do_move(move);
 					double tmp = eval(b);
-					flog << *(b);
-					flog << "val: " << tmp << std::endl;
+					// flog << *(b);
+					// flog << "val: " << tmp << std::endl;
 					if ( tmp > val ) {
 						m = move;
 						val = tmp;
@@ -167,16 +171,17 @@ int main ()
 #endif
 #ifdef RANDOM
 				auto ml = b->move_list();
-				auto m = ml.at(rand()%ml.size());				
+				auto m = ml.at(rand()%ml.size());
+				b->printPos();			
 #endif		
-				flog << myturn << b->send_move(m) << std::endl;
+				flog << "myTurn: " << myturn << b->send_move(m) << std::endl;
 				b->do_move(m);
 				std::cout << b->send_move(m) << std::flush;
 			}
 			else {
 				num = getchar()-'0';
 				dir = getchar()-'0';
-				flog << myturn << (int)num << (int)dir << std::endl;
+				flog << "oppoTurn: " << myturn << (int)num << (int)dir << std::endl;
 				if ( num == 16 ) {
 					b->undo_move();
 					b->undo_move();
