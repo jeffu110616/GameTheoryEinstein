@@ -21,10 +21,10 @@ greedy:
 	g++ -std=c++11 -D GREEDY src/baseline.cpp -o greedy
 
 pure:
-	g++ -std=c++11 src/pure.cpp -o pure
+	# g++ -std=c++11 src/pure.cpp -o pure
 
 progressive:
-	g++ -std=c++11 src/progressive.cpp -o progressive
+	# g++ -std=c++11 src/progressive.cpp -o progressive
 
 
 clean:
